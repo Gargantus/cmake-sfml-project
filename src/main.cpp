@@ -1,5 +1,8 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
+#include <fstream>
+#include <vector>
+
 using namespace std;
 
 int main()
@@ -39,6 +42,74 @@ int main()
 	sf::Vector2f dogInput;
 	sf::Vector2f dogVelocity;
 
+	//Load ground sprite
+	sf::Texture groundTexture;
+    if (!groundTexture.loadFromFile("src/sprites/Ground.png"))
+		return -1;
+	//Load question sprite
+	sf::Texture questionTexture;
+	if (!questionTexture.loadFromFile("src/sprites/Question.png"))
+		return -1;
+	//Load brick texture
+	sf::Texture brickTexture;
+	if (!brickTexture.loadFromFile("src/sprites/Brick.png"))
+		return -1;
+	//Load sky texture
+	sf::Texture skyTexture;
+	if (!skyTexture.loadFromFile("src/sprites/Sky.png"))
+		return -1;
+
+	// Load level
+	std::ifstream levelFile("src/levels/level1.txt");
+	if (!levelFile.is_open()) {
+		// Handle error: file failed to open
+	}
+
+	std::vector<sf::Sprite> tiles;
+	std::string lineText;
+
+	float tileXOffset = 0.f;
+	float tileYOffset = 0.f;
+
+	while (std::getline(levelFile, lineText)) {
+		// Strip trailing carriage return '\r' if present (Windows-style line endings)
+		if (!lineText.empty() && lineText.back() == '\r') {
+			lineText.pop_back();
+		}
+
+		int lineLength = lineText.length();
+		for (int i = 0; i < lineLength; i++) {
+			// Pick the correct texture based on the character
+			const sf::Texture* currentTexture = &skyTexture;
+
+			switch (lineText[i]) {
+				case 'q':
+					currentTexture = &questionTexture;
+				break;
+				case 'b':
+					currentTexture = &brickTexture;
+				break;
+				case 'g':
+					currentTexture = &groundTexture;
+				break;
+				default:
+					currentTexture = &skyTexture;
+				break;
+			}
+
+			sf::Sprite s(*currentTexture);
+			s.setPosition(sf::Vector2f(tileXOffset, tileYOffset));
+			tiles.push_back(s);
+
+			tileXOffset += 48.f;
+		}
+		tileXOffset = 0.f;
+		tileYOffset += 48.f;
+	}
+
+	// Close the file
+	levelFile.close();
+
 	while ( window.isOpen() )
 	{
 		sf::Time elapsed = clock.restart();
@@ -54,6 +125,11 @@ int main()
 		window.clear(sf::Color::Magenta);
 		window.draw(catSprite);
 		window.draw(dogSprite);
+
+		for (unsigned i = 0; i < tiles.size(); i++) {
+			window.draw(tiles[i]);
+		}
+
 		window.display();
 
 		///Cat
@@ -88,7 +164,7 @@ int main()
 
 		///Dog
 		sf::Vector2f dogTargetPos = (sf::Vector2f)sf::Mouse::getPosition(window) - sf::Vector2f(110, 110);
-		cout<<"Mouse Position: "<<dogTargetPos.x<<" "<<dogTargetPos.y<<endl;
+		//cout<<"Mouse Position: "<<dogTargetPos.x<<" "<<dogTargetPos.y<<endl;
 		sf::Vector2f dogDirection = dogTargetPos - dogSprite.getPosition();
 
 		float distance = std::sqrt(dogDirection.x * dogDirection.x + dogDirection.y * dogDirection.y);
