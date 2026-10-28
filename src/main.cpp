@@ -5,42 +5,35 @@
 
 using namespace std;
 
+float lerp(float a, float b, float t) {
+	return a + t * (b - a);
+}
+
 int main()
 {
 	//Render window
 	unsigned screenWidth = 1920;
 	unsigned screenHeight = 1080;
-	sf::RenderWindow window( sf::VideoMode( { screenWidth, screenHeight } ), "Cat And Dog" );
+	sf::RenderWindow window( sf::VideoMode( { screenWidth, screenHeight } ), "Mario" );
 
 	//Start clock
 	sf::Clock clock;
 
-	//Add cat texture
-	sf::Texture catTexture;
-	if (!catTexture.loadFromFile("src/sprites/cat.png"))
+	//Add mario texture
+	sf::Texture marioTexture;
+	if (!marioTexture.loadFromFile("src/sprites/Mario.png"))
 		return -1;
-	sf::Sprite catSprite(catTexture);
-	catSprite.setPosition({50, 200});
+	sf::Sprite marioSprite(marioTexture);
+	marioSprite.setPosition({100, 800});
 
-	//Add dog texture
-	sf::Texture dogTexture;
-	if (!dogTexture.loadFromFile("src/sprites/dog.png"))
-		return -1;
-	sf::Sprite dogSprite(dogTexture);
-	dogSprite.setPosition({525, 200});
-
-	float catMaxSpeed = 1.f;
-	float smooth = 0.9f;
+	float marioMaxSpeed = 10.f;
+	float smooth = 0.2f;
 	float deceleration = 10;
+	float cameraXSpeed = 0;
 
-	float catSpeed = 0;
-	sf::Vector2f catInput;
-	sf::Vector2f catVelocity;
-
-	float dogSpeed = 0;
-	float dogMaxSpeed = 500.f;
-	sf::Vector2f dogInput;
-	sf::Vector2f dogVelocity;
+	float marioSpeed = 0;
+	sf::Vector2f marioInput;
+	sf::Vector2f marioVelocity;
 
 	//Load ground sprite
 	sf::Texture groundTexture;
@@ -60,10 +53,8 @@ int main()
 		return -1;
 
 	// Load level
-	std::ifstream levelFile("src/levels/level1.txt");
-	if (!levelFile.is_open()) {
-		// Handle error: file failed to open
-	}
+	//Plik poziomu wygenerowany z pomocą AI!
+	std::ifstream levelFile("src/levels/level2.txt");
 
 	std::vector<sf::Sprite> tiles;
 	std::string lineText;
@@ -110,6 +101,13 @@ int main()
 	// Close the file
 	levelFile.close();
 
+	//Set camera
+	float cameraX = 960.f;
+	float cameraY = 540.f;
+	float pushWindow = 300.f;
+	sf::View view({cameraX, cameraY}, {cameraX*2, cameraY*2});
+	window.setView(view);
+
 	while ( window.isOpen() )
 	{
 		sf::Time elapsed = clock.restart();
@@ -123,69 +121,53 @@ int main()
 
 		//Draw
 		window.clear(sf::Color::Magenta);
-		window.draw(catSprite);
-		window.draw(dogSprite);
 
 		for (unsigned i = 0; i < tiles.size(); i++) {
 			window.draw(tiles[i]);
 		}
 
+		window.draw(marioSprite);
+
 		window.display();
 
-		///Cat
+		///Mario
 		//Get keyboard input
-		catInput.x = 0;
-		catInput.y = 0;
+		marioInput.x = 0;
+		marioInput.y = 0;
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
 
-			catInput += sf::Vector2f(-1, 0);
+			marioInput += sf::Vector2f(-1, 0);
 			cout<<"Left key pressed"<<endl;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
-			catInput += sf::Vector2f(1, 0);
+			marioInput += sf::Vector2f(1, 0);
 			cout<<"Right key pressed"<<endl;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-			catInput += sf::Vector2f(0, 1);
+			marioInput += sf::Vector2f(0, 1);
 			cout<<"Down key pressed"<<endl;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-			catInput += sf::Vector2f(0, -1);
+			marioInput += sf::Vector2f(0, -1);
 			cout<<"Up key pressed"<<endl;
 		}
 		//Acceleration
-		catSpeed = catMaxSpeed * (1 - smooth) + catSpeed * smooth;
-		catVelocity += catSpeed * catInput;
-		catSprite.move(catVelocity * deltaTime);
+		marioSpeed = marioMaxSpeed * (1 - smooth) + marioSpeed * smooth;
+		marioVelocity += marioSpeed * marioInput;
+		marioSprite.move(marioVelocity * deltaTime);
 		//Deceleration
-		if (catInput == sf::Vector2f(0, 0)) {
-			catVelocity -= (1-smooth)*deceleration*catVelocity*deltaTime;
+		if (marioInput == sf::Vector2f(0, 0)) {
+			marioVelocity -= (1-smooth)*deceleration*marioVelocity*deltaTime;
 		}
 
-		///Dog
-		sf::Vector2f dogTargetPos = (sf::Vector2f)sf::Mouse::getPosition(window) - sf::Vector2f(110, 110);
-		//cout<<"Mouse Position: "<<dogTargetPos.x<<" "<<dogTargetPos.y<<endl;
-		sf::Vector2f dogDirection = dogTargetPos - dogSprite.getPosition();
-
-		float distance = std::sqrt(dogDirection.x * dogDirection.x + dogDirection.y * dogDirection.y);
-		if (distance > 0.001f) {
-			dogInput = dogDirection / distance;
+		if (marioSprite.getPosition().x>cameraX-pushWindow) {
+			cameraXSpeed = lerp(cameraXSpeed,marioVelocity.x,0.1f);
+			cameraXSpeed = std::clamp(cameraXSpeed,0.f,FLT_MAX);
+			cameraX+=cameraXSpeed*deltaTime;
 		}
 
-		//Slowdown when near mouse
-		float slowdownRadius = 200.f;
-		float targetSpeed = dogMaxSpeed;
-
-		if (distance < slowdownRadius) {
-			targetSpeed = dogMaxSpeed * (distance / slowdownRadius);
-		}
-
-		if (distance < 2.f) {
-			targetSpeed = 0.f;
-		}
-		//Dog acceleration
-		sf::Vector2f targetVelocity = dogInput * targetSpeed;
-		dogVelocity = targetVelocity * (1.f - smooth) + dogVelocity * smooth;
-		dogSprite.move(dogVelocity * deltaTime);
+		view.setCenter(sf::Vector2f(cameraX, cameraY));
+		window.setView(view);
 	}
+
 }
